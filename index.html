@@ -13,9 +13,9 @@
         }
         .khmer-text {
             font-family: 'Kantumruy Pro', sans-serif;
-            font-size: 0.8rem;
-            color: #475569;
-            line-height: 1.2;
+            font-size: 0.85rem;
+            color: #334155;
+            line-height: 1.4;
         }
         .font-bayon {
             font-family: 'Bayon', sans-serif;
@@ -32,13 +32,42 @@
             * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
             @page { margin: 1.5cm; }
             .print-break-avoid { break-inside: avoid; }
+            .print\:hidden { display: none !important; }
+        }
+        
+        /* Loading dots animation */
+        .loading-dots::after {
+            content: '.';
+            animation: dots 1.5s steps(5, end) infinite;
+        }
+        @keyframes dots {
+            0%, 20% { color: rgba(0,0,0,0); text-shadow: .25em 0 0 rgba(0,0,0,0), .5em 0 0 rgba(0,0,0,0);}
+            40% { color: inherit; text-shadow: .25em 0 0 rgba(0,0,0,0), .5em 0 0 rgba(0,0,0,0);}
+            60% { text-shadow: .25em 0 0 inherit, .5em 0 0 rgba(0,0,0,0);}
+            80%, 100% { text-shadow: .25em 0 0 inherit, .5em 0 0 inherit;}
+        }
+
+        /* Custom Scrollbar for Modal */
+        .custom-scroll::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scroll::-webkit-scrollbar-track {
+            background: #f1f5f9; 
+            border-radius: 4px;
+        }
+        .custom-scroll::-webkit-scrollbar-thumb {
+            background: #cbd5e1; 
+            border-radius: 4px;
+        }
+        .custom-scroll::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8; 
         }
     </style>
 </head>
 <body class="min-h-screen flex flex-col items-center py-6 px-4">
 
     <!-- Interactive Web View (Hidden on Print) -->
-    <div class="w-full max-w-2xl bg-white rounded-[2rem] shadow-2xl overflow-hidden border border-slate-200 print:hidden relative">
+    <div class="w-full max-w-[850px] bg-white rounded-[2rem] shadow-2xl overflow-hidden border border-slate-200 print:hidden relative">
         
         <button onclick="window.print()" class="absolute top-6 right-6 bg-white/20 hover:bg-white/30 text-white rounded-full p-2.5 transition z-10 backdrop-blur-sm border border-white/30 shadow-sm" title="Print Guide">
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
@@ -69,13 +98,32 @@
             </a>
         </div>
 
-        <main id="conversation-display" class="p-6 md:p-8 space-y-6 min-h-[450px] bg-white">
+        <main id="conversation-display" class="p-4 md:p-8 bg-white min-h-[450px]">
             <!-- Content injected here -->
         </main>
 
         <footer class="p-4 bg-slate-50 text-center border-t border-slate-100">
-            <p class="text-slate-400 text-xs font-medium">Textbook Edition • Khmer-English Learning</p>
+            <p class="text-slate-400 text-xs font-medium flex items-center justify-center gap-1">
+                Textbook Edition • Khmer-English Learning <span class="text-amber-500 ml-1">✨ AI Powered</span>
+            </p>
         </footer>
+    </div>
+
+    <!-- Moveable AI Guide Pop-up Modal -->
+    <div id="ai-guide-widget" class="hidden fixed z-50 flex-col bg-white rounded-2xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.3)] border border-amber-200 overflow-hidden w-[90vw] sm:w-[400px] print:hidden" style="top: 50%; left: 50%; transform: translate(-50%, -50%);">
+        <!-- Draggable Header -->
+        <div id="ai-guide-header" class="bg-gradient-to-r from-amber-400 to-orange-500 p-3 cursor-move flex justify-between items-center text-white select-none">
+            <span class="font-bold flex items-center gap-2 text-sm sm:text-base">
+                ✨ ជំនួយការគ្រូបង្រៀន (AI Guide)
+            </span>
+            <button onclick="closeAiGuide()" class="hover:bg-white/20 rounded-full p-1.5 transition-colors focus:outline-none">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+        </div>
+        <!-- Scrollable Content -->
+        <div id="ai-guide-content" class="p-5 khmer-text bg-gradient-to-br from-amber-50/30 to-orange-50/30 text-slate-700 max-h-[60vh] overflow-y-auto custom-scroll">
+            <!-- Content injected via JS -->
+        </div>
     </div>
 
     <!-- Print View (Hidden on Web) -->
@@ -84,285 +132,545 @@
     </div>
 
     <script>
+        // GEMINI API Configuration
+        const apiKey = ""; // API key is injected at runtime
+        
         const charProps = {
-            "Tom": { emoji: "👦", boxBg: "bg-blue-50", boxBorder: "border-blue-100", nameColor: "text-blue-500" },
-            "Anne": { emoji: "👧", boxBg: "bg-pink-50", boxBorder: "border-pink-100", nameColor: "text-pink-500" },
-            "Mom": { emoji: "👩", boxBg: "bg-purple-50", boxBorder: "border-purple-100", nameColor: "text-purple-500" },
-            "Dad": { emoji: "👨", boxBg: "bg-amber-50", boxBorder: "border-amber-100", nameColor: "text-amber-500" },
-            "Ben": { emoji: "👦", boxBg: "bg-emerald-50", boxBorder: "border-emerald-100", nameColor: "text-emerald-500" }
+            "Tom": { emoji: "👦", boxBg: "bg-blue-50/80", boxBorder: "border-blue-200", nameColor: "text-blue-500", alignLeft: true },
+            "Ben": { emoji: "👦", boxBg: "bg-emerald-50/80", boxBorder: "border-emerald-200", nameColor: "text-emerald-500", alignLeft: true },
+            "Anne": { emoji: "👧", boxBg: "bg-pink-50/80", boxBorder: "border-pink-200", nameColor: "text-pink-500", alignLeft: false },
+            "Mom": { emoji: "👩", boxBg: "bg-purple-50/80", boxBorder: "border-purple-200", nameColor: "text-purple-500", alignLeft: false },
+            "Dad": { emoji: "👨", boxBg: "bg-amber-50/80", boxBorder: "border-amber-200", nameColor: "text-amber-500", alignLeft: false }
         };
 
         const conversationData = [
             { id: 1, title: "Hello", icon: "👋", chat: [
-                { name: "Tom", color: "bg-blue-500", eng: "Hello, Anne.", kh: "សួស្តី អាន។" },
-                { name: "Anne", color: "bg-pink-500", eng: "Hello, Tom.", kh: "សួស្តី ថម។" },
-                { name: "Tom", color: "bg-blue-500", eng: "Good morning, Anne.", kh: "អរុណសួស្តី អាន។" },
-                { name: "Anne", color: "bg-pink-500", eng: "Good morning, Tom.", kh: "អរុណសួស្តី ថម។" },
-                { name: "Tom", color: "bg-blue-500", eng: "Good afternoon, Anne.", kh: "ទិវាសួស្តី អាន។" },
-                { name: "Anne", color: "bg-pink-500", eng: "Good afternoon, Tom.", kh: "ទិវាសួស្តី ថម។" },
-                { name: "Tom", color: "bg-blue-500", eng: "Good evening, Anne.", kh: "សាយ័ណ្ហសួស្តី អាន។" },
-                { name: "Anne", color: "bg-pink-500", eng: "Good evening, Tom.", kh: "សាយ័ណ្ហសួស្តី ថម។" },
-                { name: "Anne", color: "bg-pink-500", eng: "Good night, Mom.", kh: "រាត្រីសួស្តី ម៉ាក់។" },
-                { name: "Mom", color: "bg-purple-500", eng: "Good night, Anne.", kh: "រាត្រីសួស្តី អាន។" }
+                { name: "Tom", eng: "Hello, Anne.", kh: "សួស្តី អាន។" },
+                { name: "Anne", eng: "Hello, Tom.", kh: "សួស្តី ថម។" },
+                { name: "Tom", eng: "Good morning, Anne.", kh: "អរុណសួស្តី អាន។" },
+                { name: "Anne", eng: "Good morning, Tom.", kh: "អរុណសួស្តី ថម។" },
+                { name: "Tom", eng: "Good afternoon, Anne.", kh: "ទិវាសួស្តី អាន។" },
+                { name: "Anne", eng: "Good afternoon, Tom.", kh: "ទិវាសួស្តី ថម។" },
+                { name: "Tom", eng: "Good evening, Anne.", kh: "សាយ័ណ្ហសួស្តី អាន។" },
+                { name: "Anne", eng: "Good evening, Tom.", kh: "សាយ័ណ្ហសួស្តី ថម។" },
+                { name: "Anne", eng: "Good night, Mom.", kh: "រាត្រីសួស្តី ម៉ាក់។" },
+                { name: "Mom", eng: "Good night, Anne.", kh: "រាត្រីសួស្តី អាន។" }
             ]},
             { id: 2, title: "How are you?", icon: "😊", chat: [
-                { name: "Tom", color: "bg-blue-500", eng: "Hello.", kh: "សួស្តី។" },
-                { name: "Anne", color: "bg-pink-500", eng: "Hello.", kh: "សួស្តី។" },
-                { name: "Tom", color: "bg-blue-500", eng: "Are you a student?", kh: "តើអ្នកជាសិស្សមែនទេ?" },
-                { name: "Anne", color: "bg-pink-500", eng: "Yes, I am.", kh: "ចាស មែនហើយ។" },
-                { name: "Anne", color: "bg-pink-500", eng: "Are you a student?", kh: "តើអ្នកជាសិស្សមែនទេ?" },
-                { name: "Tom", color: "bg-blue-500", eng: "Yes, I am.", kh: "បាទ មែនហើយ។" },
-                { name: "Tom", color: "bg-blue-500", eng: "How are you?", kh: "តើអ្នកសុខសប្បាយជាទេ?" },
-                { name: "Anne", color: "bg-pink-500", eng: "I'm fine.", kh: "ខ្ញុំសុខសប្បាយ។" },
-                { name: "Anne", color: "bg-pink-500", eng: "How are you?", kh: "តើអ្នកសុខសប្បាយជាទេ?" },
-                { name: "Tom", color: "bg-blue-500", eng: "I'm fine, too.", kh: "ខ្ញុំក៏សុខសប្បាយដែរ។" }
+                { name: "Tom", eng: "Hello.", kh: "សួស្តី។" },
+                { name: "Anne", eng: "Hello.", kh: "សួស្តី។" },
+                { name: "Tom", eng: "Are you a student?", kh: "តើអ្នកជាសិស្សមែនទេ?" },
+                { name: "Anne", eng: "Yes, I am.", kh: "ចាស មែនហើយ។" },
+                { name: "Anne", eng: "Are you a student?", kh: "តើអ្នកជាសិស្សមែនទេ?" },
+                { name: "Tom", eng: "Yes, I am.", kh: "បាទ មែនហើយ។" },
+                { name: "Tom", eng: "How are you?", kh: "តើអ្នកសុខសប្បាយជាទេ?" },
+                { name: "Anne", eng: "I'm fine.", kh: "ខ្ញុំសុខសប្បាយ។" },
+                { name: "Anne", eng: "How are you?", kh: "តើអ្នកសុខសប្បាយជាទេ?" },
+                { name: "Tom", eng: "I'm fine, too.", kh: "ខ្ញុំក៏សុខសប្បាយដែរ។" }
             ]},
             { id: 3, title: "Is it a banana?", icon: "🍌", chat: [
-                { name: "Tom", color: "bg-blue-500", eng: "Is it a banana?", kh: "តើវាជាចេកមែនទេ?" },
-                { name: "Anne", color: "bg-pink-500", eng: "Yes, it is.", kh: "ចាស មែនហើយ។" },
-                { name: "Tom", color: "bg-blue-500", eng: "Is it an orange?", kh: "តើវាជាផ្លែក្រូចមែនទេ?" },
-                { name: "Anne", color: "bg-pink-500", eng: "Yes, it is.", kh: "ចាស មែនហើយ។" },
-                { name: "Tom", color: "bg-blue-500", eng: "Is it an apple?", kh: "តើវាជាផ្លែប៉ោមមែនទេ?" },
-                { name: "Anne", color: "bg-pink-500", eng: "No, it isn't. It's a cherry.", kh: "ទេ មិនមែនទេ។ វាគឺជាផ្លែឆឺរី។" },
-                { name: "Tom", color: "bg-blue-500", eng: "Is it a melon?", kh: "តើវាជាត្រសក់ស្រូវមែនទេ?" },
-                { name: "Anne", color: "bg-pink-500", eng: "No, it isn't. It's a pineapple.", kh: "ទេ មិនមែនទេ។ វាគឺជាម្នាស់។" }
+                { name: "Tom", eng: "Is it a banana?", kh: "តើវាជាចេកមែនទេ?" },
+                { name: "Anne", eng: "Yes, it is.", kh: "ចាស មែនហើយ។" },
+                { name: "Tom", eng: "Is it an orange?", kh: "តើវាជាផ្លែក្រូចមែនទេ?" },
+                { name: "Anne", eng: "Yes, it is.", kh: "ចាស មែនហើយ។" },
+                { name: "Tom", eng: "Is it an apple?", kh: "តើវាជាផ្លែប៉ោមមែនទេ?" },
+                { name: "Anne", eng: "No, it isn't. It's a cherry.", kh: "ទេ មិនមែនទេ។ វាគឺជាផ្លែឆឺរី។" },
+                { name: "Tom", eng: "Is it a melon?", kh: "តើវាជាត្រសក់ស្រូវមែនទេ?" },
+                { name: "Anne", eng: "No, it isn't. It's a pineapple.", kh: "ទេ មិនមែនទេ។ វាគឺជាម្នាស់។" }
             ]},
             { id: 4, title: "What is it?", icon: "❓", chat: [
-                { name: "Tom", color: "bg-blue-500", eng: "What is it?", kh: "តើវាជាអ្វី?" },
-                { name: "Anne", color: "bg-pink-500", eng: "It's a pencil.", kh: "វាគឺជាខ្មៅដៃ។" },
-                { name: "Tom", color: "bg-blue-500", eng: "What is it?", kh: "តើវាជាអ្វី?" },
-                { name: "Anne", color: "bg-pink-500", eng: "It's a book.", kh: "វាគឺជាសៀវភៅ។" },
-                { name: "Tom", color: "bg-blue-500", eng: "What is it?", kh: "តើវាជាអ្វី?" },
-                { name: "Anne", color: "bg-pink-500", eng: "It's a ball.", kh: "វាគឺជាបាល់។" },
-                { name: "Tom", color: "bg-blue-500", eng: "What is it?", kh: "តើវាជាអ្វី?" },
-                { name: "Anne", color: "bg-pink-500", eng: "It's a cup.", kh: "វាគឺជាពែង។" }
+                { name: "Tom", eng: "What is it?", kh: "តើវាជាអ្វី?" },
+                { name: "Anne", eng: "It's a pencil.", kh: "វាគឺជាខ្មៅដៃ។" },
+                { name: "Tom", eng: "What is it?", kh: "តើវាជាអ្វី?" },
+                { name: "Anne", eng: "It's a book.", kh: "វាគឺជាសៀវភៅ។" },
+                { name: "Tom", eng: "What is it?", kh: "តើវាជាអ្វី?" },
+                { name: "Anne", eng: "It's a ball.", kh: "វាគឺជាបាល់។" },
+                { name: "Tom", eng: "What is it?", kh: "តើវាជាអ្វី?" },
+                { name: "Anne", eng: "It's a cup.", kh: "វាគឺជាពែង។" }
             ]},
             { id: 5, title: "What is this/that?", icon: "👉", chat: [
-                { name: "Tom", color: "bg-blue-500", eng: "What is this?", kh: "តើនេះជាអ្វី?" },
-                { name: "Anne", color: "bg-pink-500", eng: "This is a dog.", kh: "នេះគឺជាឆ្កែ។" },
-                { name: "Tom", color: "bg-blue-500", eng: "What is this?", kh: "តើនេះជាអ្វី?" },
-                { name: "Anne", color: "bg-pink-500", eng: "This is a cat.", kh: "នេះគឺជាឆ្មា។" },
-                { name: "Tom", color: "bg-blue-500", eng: "What is that?", kh: "តើនោះជាអ្វី?" },
-                { name: "Anne", color: "bg-pink-500", eng: "That is a cow.", kh: "នោះគឺជាសត្វគោ។" },
-                { name: "Tom", color: "bg-blue-500", eng: "What is that?", kh: "តើនោះជាអ្វី?" },
-                { name: "Anne", color: "bg-pink-500", eng: "That is a duck.", kh: "នោះគឺជាសត្វទា។" }
+                { name: "Tom", eng: "What is this?", kh: "តើនេះជាអ្វី?" },
+                { name: "Anne", eng: "This is a dog.", kh: "នេះគឺជាឆ្កែ។" },
+                { name: "Tom", eng: "What is this?", kh: "តើនេះជាអ្វី?" },
+                { name: "Anne", eng: "This is a cat.", kh: "នេះគឺជាឆ្មា។" },
+                { name: "Tom", eng: "What is that?", kh: "តើនោះជាអ្វី?" },
+                { name: "Anne", eng: "That is a cow.", kh: "នោះគឺជាសត្វគោ។" },
+                { name: "Tom", eng: "What is that?", kh: "តើនោះជាអ្វី?" },
+                { name: "Anne", eng: "That is a duck.", kh: "នោះគឺជាសត្វទា។" }
             ]},
             { id: 6, title: "What color is it?", icon: "🎨", chat: [
-                { name: "Tom", color: "bg-blue-500", eng: "What color is it?", kh: "តើវាពណ៌អ្វី?" },
-                { name: "Anne", color: "bg-pink-500", eng: "It's red.", kh: "វាពណ៌ក្រហម។" },
-                { name: "Tom", color: "bg-blue-500", eng: "What color is it?", kh: "តើវាពណ៌អ្វី?" },
-                { name: "Anne", color: "bg-pink-500", eng: "It's black.", kh: "វាពណ៌ខ្មៅ។" },
-                { name: "Tom", color: "bg-blue-500", eng: "What color is it?", kh: "តើវាពណ៌អ្វី?" },
-                { name: "Anne", color: "bg-pink-500", eng: "It's blue.", kh: "វាពណ៌ខៀវ។" },
-                { name: "Tom", color: "bg-blue-500", eng: "Is it white?", kh: "តើវាពណ៌សមែនទេ?" },
-                { name: "Anne", color: "bg-pink-500", eng: "Yes, it is.", kh: "ចាស មែនហើយ។" },
-                { name: "Tom", color: "bg-blue-500", eng: "Is it yellow?", kh: "តើវាពណ៌លឿងមែនទេ?" },
-                { name: "Anne", color: "bg-pink-500", eng: "No, it isn't. It's orange.", kh: "ទេ មិនមែនទេ។ វាពណ៌ទឹកក្រូច។" }
+                { name: "Tom", eng: "What color is it?", kh: "តើវាពណ៌អ្វី?" },
+                { name: "Anne", eng: "It's red.", kh: "វាពណ៌ក្រហម។" },
+                { name: "Tom", eng: "What color is it?", kh: "តើវាពណ៌អ្វី?" },
+                { name: "Anne", eng: "It's black.", kh: "វាពណ៌ខ្មៅ។" },
+                { name: "Tom", eng: "What color is it?", kh: "តើវាពណ៌អ្វី?" },
+                { name: "Anne", eng: "It's blue.", kh: "វាពណ៌ខៀវ។" },
+                { name: "Tom", eng: "Is it white?", kh: "តើវាពណ៌សមែនទេ?" },
+                { name: "Anne", eng: "Yes, it is.", kh: "ចាស មែនហើយ។" },
+                { name: "Tom", eng: "Is it yellow?", kh: "តើវាពណ៌លឿងមែនទេ?" },
+                { name: "Anne", eng: "No, it isn't. It's orange.", kh: "ទេ មិនមែនទេ។ វាពណ៌ទឹកក្រូច។" }
             ]},
             { id: 7, title: "What number is it?", icon: "🔢", chat: [
-                { name: "Tom", color: "bg-blue-500", eng: "What number is it?", kh: "តើវាជាលេខប៉ុន្មាន?" },
-                { name: "Anne", color: "bg-pink-500", eng: "It's three.", kh: "វាជាលេខបី។" },
-                { name: "Tom", color: "bg-blue-500", eng: "What number is this?", kh: "តើនេះជាលេខប៉ុន្មាន?" },
-                { name: "Anne", color: "bg-pink-500", eng: "This is seven.", kh: "នេះជាលេខប្រាំពីរ។" },
-                { name: "Tom", color: "bg-blue-500", eng: "What number is it?", kh: "តើវាជាលេខប៉ុន្មាន?" },
-                { name: "Anne", color: "bg-pink-500", eng: "It's ten.", kh: "វាជាលេខដប់។" },
-                { name: "Tom", color: "bg-blue-500", eng: "Is this two?", kh: "តើនេះជាលេខពីរមែនទេ?" },
-                { name: "Anne", color: "bg-pink-500", eng: "Yes, it is.", kh: "ចាស មែនហើយ។" },
-                { name: "Tom", color: "bg-blue-500", eng: "Is it nine?", kh: "តើវាជាលេខប្រាំបួនមែនទេ?" },
-                { name: "Anne", color: "bg-pink-500", eng: "No, it isn't. It's six.", kh: "ទេ មិនមែនទេ។ វាជាលេខប្រាំមួយ។" }
+                { name: "Tom", eng: "What number is it?", kh: "តើវាជាលេខប៉ុន្មាន?" },
+                { name: "Anne", eng: "It's three.", kh: "វាជាលេខបី។" },
+                { name: "Tom", eng: "What number is this?", kh: "តើនេះជាលេខប៉ុន្មាន?" },
+                { name: "Anne", eng: "This is seven.", kh: "នេះជាលេខប្រាំពីរ។" },
+                { name: "Tom", eng: "What number is it?", kh: "តើវាជាលេខប៉ុន្មាន?" },
+                { name: "Anne", eng: "It's ten.", kh: "វាជាលេខដប់។" },
+                { name: "Tom", eng: "Is this two?", kh: "តើនេះជាលេខពីរមែនទេ?" },
+                { name: "Anne", eng: "Yes, it is.", kh: "ចាស មែនហើយ។" },
+                { name: "Tom", eng: "Is it nine?", kh: "តើវាជាលេខប្រាំបួនមែនទេ?" },
+                { name: "Anne", eng: "No, it isn't. It's six.", kh: "ទេ មិនមែនទេ។ វាជាលេខប្រាំមួយ។" }
             ]},
             { id: 8, title: "Is he a teacher?", icon: "👨‍🏫", chat: [
-                { name: "Tom", color: "bg-blue-500", eng: "Is he a teacher?", kh: "តើគាត់ជាគ្រូបង្រៀនមែនទេ?" },
-                { name: "Anne", color: "bg-pink-500", eng: "Yes, he is.", kh: "ចាស មែនហើយ។" },
-                { name: "Tom", color: "bg-blue-500", eng: "Is she a teacher?", kh: "តើនាងជាគ្រូបង្រៀនមែនទេ?" },
-                { name: "Anne", color: "bg-pink-500", eng: "Yes, she is.", kh: "ចាស មែនហើយ។" },
-                { name: "Tom", color: "bg-blue-500", eng: "Is he a doctor?", kh: "តើគាត់ជាវេជ្ជបណ្ឌិតមែនទេ?" },
-                { name: "Anne", color: "bg-pink-500", eng: "Yes, he is.", kh: "ចាស មែនហើយ។" },
-                { name: "Tom", color: "bg-blue-500", eng: "Is she a nurse?", kh: "តើនាងជាគិលានុបដ្ឋាយិកាមែនទេ?" },
-                { name: "Anne", color: "bg-pink-500", eng: "No, she isn't. She is a doctor.", kh: "ទេ នាងមិនមែនទេ។ នាងគឺជាវេជ្ជបណ្ឌិត។" }
+                { name: "Tom", eng: "Is he a teacher?", kh: "តើគាត់ជាគ្រូបង្រៀនមែនទេ?" },
+                { name: "Anne", eng: "Yes, he is.", kh: "ចាស មែនហើយ។" },
+                { name: "Tom", eng: "Is she a teacher?", kh: "តើនាងជាគ្រូបង្រៀនមែនទេ?" },
+                { name: "Anne", eng: "Yes, she is.", kh: "ចាស មែនហើយ។" },
+                { name: "Tom", eng: "Is he a doctor?", kh: "តើគាត់ជាវេជ្ជបណ្ឌិតមែនទេ?" },
+                { name: "Anne", eng: "Yes, he is.", kh: "ចាស មែនហើយ។" },
+                { name: "Tom", eng: "Is she a nurse?", kh: "តើនាងជាគិលានុបដ្ឋាយិកាមែនទេ?" },
+                { name: "Anne", eng: "No, she isn't. She is a doctor.", kh: "ទេ នាងមិនមែនទេ។ នាងគឺជាវេជ្ជបណ្ឌិត។" }
             ]},
             { id: 9, title: "Who is she?", icon: "👩", chat: [
-                { name: "Tom", color: "bg-blue-500", eng: "Who is he?", kh: "តើគាត់ជានរណា?" },
-                { name: "Anne", color: "bg-pink-500", eng: "He is my dad.", kh: "គាត់គឺជាប៉ារបស់ខ្ញុំ។" },
-                { name: "Tom", color: "bg-blue-500", eng: "Who is she?", kh: "តើនាងជានរណា?" },
-                { name: "Anne", color: "bg-pink-500", eng: "She is my mom.", kh: "នាងគឺជាម៉ាក់របស់ខ្ញុំ។" },
-                { name: "Tom", color: "bg-blue-500", eng: "Who is he?", kh: "តើគាត់ជានរណា?" },
-                { name: "Anne", color: "bg-pink-500", eng: "He is my grandfather.", kh: "គាត់គឺជាជីតារបស់ខ្ញុំ។" },
-                { name: "Tom", color: "bg-blue-500", eng: "Who is she?", kh: "តើនាងជានរណា?" },
-                { name: "Anne", color: "bg-pink-500", eng: "She is my grandmother.", kh: "នាងគឺជាជីដូនរបស់ខ្ញុំ។" },
-                { name: "Tom", color: "bg-blue-500", eng: "Who is she?", kh: "តើនាងជានរណា?" },
-                { name: "Anne", color: "bg-pink-500", eng: "She is my sister.", kh: "នាងគឺជាប្អូនស្រីរបស់ខ្ញុំ។" }
+                { name: "Tom", eng: "Who is he?", kh: "តើគាត់ជានរណា?" },
+                { name: "Anne", eng: "He is my dad.", kh: "គាត់គឺជាប៉ារបស់ខ្ញុំ។" },
+                { name: "Tom", eng: "Who is she?", kh: "តើនាងជានរណា?" },
+                { name: "Anne", eng: "She is my mom.", kh: "នាងគឺជាម៉ាក់របស់ខ្ញុំ។" },
+                { name: "Tom", eng: "Who is he?", kh: "តើគាត់ជានរណា?" },
+                { name: "Anne", eng: "He is my grandfather.", kh: "គាត់គឺជាជីតារបស់ខ្ញុំ។" },
+                { name: "Tom", eng: "Who is she?", kh: "តើនាងជានរណា?" },
+                { name: "Anne", eng: "She is my grandmother.", kh: "នាងគឺជាជីដូនរបស់ខ្ញុំ។" },
+                { name: "Tom", eng: "Who is she?", kh: "តើនាងជានរណា?" },
+                { name: "Anne", eng: "She is my sister.", kh: "នាងគឺជាប្អូនស្រីរបស់ខ្ញុំ។" }
             ]},
             { id: 10, title: "What is your name?", icon: "📛", chat: [
-                { name: "Tom", color: "bg-blue-500", eng: "My name is Tom. What is your name?", kh: "ខ្ញុំឈ្មោះ ថម។ តើអ្នកឈ្មោះអ្វី?" },
-                { name: "Ben", color: "bg-green-500", eng: "My name is Ben.", kh: "ខ្ញុំឈ្មោះ បេន។" },
-                { name: "Tom", color: "bg-blue-500", eng: "Nice to meet you, Ben.", kh: "រីករាយណាស់ដែលបានជួបអ្នក បេន។" },
-                { name: "Ben", color: "bg-green-500", eng: "Nice to meet you, too.", kh: "រីករាយណាស់ដែលបានជួបអ្នកដូចគ្នា។" },
-                { name: "Tom", color: "bg-blue-500", eng: "How old are you?", kh: "តើអ្នកអាយុប៉ុន្មាន?" },
-                { name: "Ben", color: "bg-green-500", eng: "I am six years old. What about you?", kh: "ខ្ញុំអាយុ ៦ ឆ្នាំ។ ចុះអ្នកវិញ?" },
-                { name: "Tom", color: "bg-blue-500", eng: "I am six years old, too.", kh: "ខ្ញុំអាយុ ៦ ឆ្នាំដូចគ្នា។" }
+                { name: "Tom", eng: "My name is Tom. What is your name?", kh: "ខ្ញុំឈ្មោះ ថម។ តើអ្នកឈ្មោះអ្វី?" },
+                { name: "Ben", eng: "My name is Ben.", kh: "ខ្ញុំឈ្មោះ បេន។" },
+                { name: "Tom", eng: "Nice to meet you, Ben.", kh: "រីករាយណាស់ដែលបានជួបអ្នក បេន។" },
+                { name: "Ben", eng: "Nice to meet you, too.", kh: "រីករាយណាស់ដែលបានជួបអ្នកដូចគ្នា។" },
+                { name: "Tom", eng: "How old are you?", kh: "តើអ្នកអាយុប៉ុន្មាន?" },
+                { name: "Ben", eng: "I am six years old. What about you?", kh: "ខ្ញុំអាយុ ៦ ឆ្នាំ។ ចុះអ្នកវិញ?" },
+                { name: "Tom", eng: "I am six years old, too.", kh: "ខ្ញុំអាយុ ៦ ឆ្នាំដូចគ្នា។" }
             ]},
             { id: 11, title: "This is my sister.", icon: "👧", chat: [
-                { name: "Tom", color: "bg-blue-500", eng: "She's cute.", kh: "នាងគួរឱ្យស្រឡាញ់ណាស់។" },
-                { name: "Anne", color: "bg-pink-500", eng: "Yes, she is.", kh: "ចាស មែនហើយ។" },
-                { name: "Tom", color: "bg-blue-500", eng: "What is her name?", kh: "តើនាងឈ្មោះអ្វី?" },
-                { name: "Anne", color: "bg-pink-500", eng: "Her name is Vicky.", kh: "នាងឈ្មោះ វីគី។" },
-                { name: "Tom", color: "bg-blue-500", eng: "How old is she?", kh: "តើនាងអាយុប៉ុន្មាន?" },
-                { name: "Anne", color: "bg-pink-500", eng: "She is 4 years old.", kh: "នាងអាយុ ៤ ឆ្នាំ។" },
-                { name: "Tom", color: "bg-blue-500", eng: "Is she tall?", kh: "តើនាងខ្ពស់មែនទេ?" },
-                { name: "Anne", color: "bg-pink-500", eng: "No, she isn't tall.", kh: "ទេ នាងមិនខ្ពស់ទេ។" }
+                { name: "Tom", eng: "She's cute.", kh: "នាងគួរឱ្យស្រឡាញ់ណាស់។" },
+                { name: "Anne", eng: "Yes, she is.", kh: "ចាស មែនហើយ។" },
+                { name: "Tom", eng: "What is her name?", kh: "តើនាងឈ្មោះអ្វី?" },
+                { name: "Anne", eng: "Her name is Vicky.", kh: "នាងឈ្មោះ វីគី។" },
+                { name: "Tom", eng: "How old is she?", kh: "តើនាងអាយុប៉ុន្មាន?" },
+                { name: "Anne", eng: "She is 4 years old.", kh: "នាងអាយុ ៤ ឆ្នាំ។" },
+                { name: "Tom", eng: "Is she tall?", kh: "តើនាងខ្ពស់មែនទេ?" },
+                { name: "Anne", eng: "No, she isnt tall.", kh: "ទេ នាងមិនខ្ពស់ទេ។" }
             ]},
             { id: 12, title: "I have a dog.", icon: "🐶", chat: [
-                { name: "Tom", color: "bg-blue-500", eng: "I have a dog.", kh: "ខ្ញុំមានឆ្កែមួយក្បាល។" },
-                { name: "Anne", color: "bg-pink-500", eng: "Is it a boy or a girl?", kh: "តើវាជាសត្វឈ្មោលឬញី?" },
-                { name: "Tom", color: "bg-blue-500", eng: "It's a boy.", kh: "វាជាសត្វឈ្មោល។" },
-                { name: "Anne", color: "bg-pink-500", eng: "What's his name?", kh: "តើវាឈ្មោះអ្វី?" },
-                { name: "Tom", color: "bg-blue-500", eng: "His name is Happy.", kh: "វាឈ្មោះ Happy។" },
-                { name: "Anne", color: "bg-pink-500", eng: "What color is he?", kh: "តើវាពណ៌អ្វី?" },
-                { name: "Tom", color: "bg-blue-500", eng: "He's white.", kh: "វាពណ៌ស។" },
-                { name: "Anne", color: "bg-pink-500", eng: "Is he big?", kh: "តើវាធំមែនទេ?" },
-                { name: "Tom", color: "bg-blue-500", eng: "No, he's small.", kh: "ទេ វាគួចទេ។" }
+                { name: "Tom", eng: "I have a dog.", kh: "ខ្ញុំមានឆ្កែមួយក្បាល។" },
+                { name: "Anne", eng: "Is it a boy or a girl?", kh: "តើវាជាសត្វឈ្មោលឬញី?" },
+                { name: "Tom", eng: "It's a boy.", kh: "វាជាសត្វឈ្មោល។" },
+                { name: "Anne", eng: "What's his name?", kh: "តើវាឈ្មោះអ្វី?" },
+                { name: "Tom", eng: "His name is Happy.", kh: "វាឈ្មោះ Happy។" },
+                { name: "Anne", eng: "What color is he?", kh: "តើវាពណ៌អ្វី?" },
+                { name: "Tom", eng: "He's white.", kh: "វាពណ៌ស។" },
+                { name: "Anne", eng: "Is he big?", kh: "តើវាធំមែនទេ?" },
+                { name: "Tom", eng: "No, he's small.", kh: "ទេ វាគួចទេ។" }
             ]},
             { id: 13, title: "Are they boys?", icon: "👦", chat: [
-                { name: "Anne", color: "bg-pink-500", eng: "I have cousins. They are twins.", kh: "ខ្ញុំមានបងប្អូនជីដូនមួយ។ ពួកគេគឺជាកូនភ្លោះ។" },
-                { name: "Tom", color: "bg-blue-500", eng: "Are they boys?", kh: "តើពួកគេជាក្មេងប្រុសមែនទេ?" },
-                { name: "Anne", color: "bg-pink-500", eng: "No, they're not. They are girls.", kh: "ទេ មិនមែនទេ។ ពួកគេជាក្មេងស្រី។" },
-                { name: "Tom", color: "bg-blue-500", eng: "Are they tall?", kh: "តើពួកគេខ្ពស់មែនទេ?" },
-                { name: "Anne", color: "bg-pink-500", eng: "No, they're not tall. They are short.", kh: "ទេ ពួកគេមិនខ្ពស់ទេ។ ពួកគេទាប។" },
-                { name: "Tom", color: "bg-blue-500", eng: "How old are they?", kh: "តើពួកគេអាយុប៉ុន្មាន?" },
-                { name: "Anne", color: "bg-pink-500", eng: "They're one year old.", kh: "ពួកគេអាយុ ១ ឆ្នាំ។" },
-                { name: "Tom", color: "bg-blue-500", eng: "What are their names?", kh: "តើពួកគេឈ្មោះអ្វីខ្លះ?" },
-                { name: "Anne", color: "bg-pink-500", eng: "Erin and Ruby.", kh: "អេរីន និង រ៉ូប៊ី។" }
+                { name: "Anne", eng: "I have cousins. They are twins.", kh: "ខ្ញុំមានបងប្អូនជីដូនមួយ។ ពួកគេគឺជាកូនភ្លោះ។" },
+                { name: "Tom", eng: "Are they boys?", kh: "តើពួកគេជាក្មេងប្រុសមែនទេ?" },
+                { name: "Anne", eng: "No, they're not. They are girls.", kh: "ទេ មិនមែនទេ។ ពួកគេជាក្មេងស្រី។" },
+                { name: "Tom", eng: "Are they tall?", kh: "តើពួកគេខ្ពស់មែនទេ?" },
+                { name: "Anne", eng: "No, they're not tall. They are short.", kh: "ទេ ពួកគេមិនខ្ពស់ទេ។ ពួកគេទាប។" },
+                { name: "Tom", eng: "How old are they?", kh: "តើពួកគេអាយុប៉ុន្មាន?" },
+                { name: "Anne", eng: "They're one year old.", kh: "ពួកគេអាយុ ១ ឆ្នាំ។" },
+                { name: "Tom", eng: "What are their names?", kh: "តើពួកគេឈ្មោះអ្វីខ្លះ?" },
+                { name: "Anne", eng: "Erin and Ruby.", kh: "អេរីន និង រ៉ូប៊ី។" }
             ]},
             { id: 14, title: "Do you like apples?", icon: "🍎", chat: [
-                { name: "Tom", color: "bg-blue-500", eng: "Do you like apples?", kh: "តើអ្នកចូលចិត្តផ្លែប៉ោមទេ?" },
-                { name: "Anne", color: "bg-pink-500", eng: "Yes, I do.", kh: "ចាស ខ្ញុំចូលចិត្ត។" },
-                { name: "Tom", color: "bg-blue-500", eng: "Do you like oranges?", kh: "តើអ្នកចូលចិត្តក្រូចទេ?" },
-                { name: "Anne", color: "bg-pink-500", eng: "Yes.", kh: "ចាស។" },
-                { name: "Tom", color: "bg-blue-500", eng: "Do you like strawberries?", kh: "តើអ្នកចូលចិត្តស្ត្របឺរីទេ?" },
-                { name: "Anne", color: "bg-pink-500", eng: "No, I don't.", kh: "ទេ ខ្ញុំមិនចូលចិត្តទេ។" },
-                { name: "Anne", color: "bg-pink-500", eng: "Do you like strawberries?", kh: "តើអ្នកចូលចិត្តស្ត្របឺរីទេ?" },
-                { name: "Tom", color: "bg-blue-500", eng: "Yes.", kh: "បាទ។" },
-                { name: "Anne", color: "bg-pink-500", eng: "Do you like bananas?", kh: "តើអ្នកចូលចិត្តចេកទេ?" },
-                { name: "Tom", color: "bg-blue-500", eng: "Yes, I like bananas.", kh: "បាទ ខ្ញុំចូលចិត្តចេក។" }
+                { name: "Tom", eng: "Do you like apples?", kh: "តើអ្នកចូលចិត្តផ្លែប៉ោមទេ?" },
+                { name: "Anne", eng: "Yes, I do.", kh: "ចាស ខ្ញុំចូលចិត្ត។" },
+                { name: "Tom", eng: "Do you like oranges?", kh: "តើអ្នកចូលចិត្តក្រូចទេ?" },
+                { name: "Anne", eng: "Yes.", kh: "ចាស។" },
+                { name: "Tom", eng: "Do you like strawberries?", kh: "តើអ្នកចូលចិត្តស្ត្របឺរីទេ?" },
+                { name: "Anne", eng: "No, I don't.", kh: "ទេ ខ្ញុំមិនចូលចិត្តទេ។" },
+                { name: "Anne", eng: "Do you like strawberries?", kh: "តើអ្នកចូលចិត្តស្ត្របឺរីទេ?" },
+                { name: "Tom", eng: "Yes.", kh: "បាទ។" },
+                { name: "Anne", eng: "Do you like bananas?", kh: "តើអ្នកចូលចិត្តចេកទេ?" },
+                { name: "Tom", eng: "Yes, I like bananas.", kh: "បាទ ខ្ញុំចូលចិត្តចេក។" }
             ]},
             { id: 15, title: "Happy birthday!", icon: "🎂", chat: [
-                { name: "Tom", color: "bg-blue-500", eng: "Happy birthday, Anne.", kh: "រីករាយថ្ងៃកំណើត អាន។" },
-                { name: "Anne", color: "bg-pink-500", eng: "Thank you.", kh: "អរគុណ។" },
-                { name: "Tom", color: "bg-blue-500", eng: "Here's your birthday gift.", kh: "នេះគឺជាកាដូថ្ងៃកំណើតរបស់អ្នក។" },
-                { name: "Anne", color: "bg-pink-500", eng: "What is it?", kh: "តើវាជាអ្វី?" },
-                { name: "Tom", color: "bg-blue-500", eng: "It's a crayon set. It has 24 colors.", kh: "វាគឺជាប្រអប់ពណ៌។ វាមាន ២៤ ពណ៌។" },
-                { name: "Anne", color: "bg-pink-500", eng: "Thank you.", kh: "អរគុណ។" },
-                { name: "Ben", color: "bg-green-500", eng: "My gift is a story book.", kh: "កាដូរបស់ខ្ញុំគឺសៀវភៅរឿង។" },
-                { name: "Anne", color: "bg-pink-500", eng: "Thank you.", kh: "អរគុណ។" },
-                { name: "Dad", color: "bg-purple-500", eng: "My gift is a toy car.", kh: "កាដូរបស់ប៉ាគឺឡានក្មេងលេង។" },
-                { name: "Anne", color: "bg-pink-500", eng: "Thank you. It's so nice.", kh: "អរគុណ។ វាពិតជាល្អណាស់។" }
+                { name: "Tom", eng: "Happy birthday, Anne.", kh: "រីករាយថ្ងៃកំណើត អាន។" },
+                { name: "Anne", eng: "Thank you.", kh: "អរគុណ។" },
+                { name: "Tom", eng: "Here's your birthday gift.", kh: "នេះគឺជាកាដូថ្ងៃកំណើតរបស់អ្នក។" },
+                { name: "Anne", eng: "What is it?", kh: "តើវាជាអ្វី?" },
+                { name: "Tom", eng: "It's a crayon set. It has 24 colors.", kh: "វាគឺជាប្រអប់ពណ៌។ វាមាន ២៤ ពណ៌។" },
+                { name: "Anne", eng: "Thank you.", kh: "អរគុណ។" },
+                { name: "Ben", eng: "My gift is a story book.", kh: "កាដូរបស់ខ្ញុំគឺសៀវភៅរឿង។" },
+                { name: "Anne", eng: "Thank you.", kh: "អរគុណ។" },
+                { name: "Dad", eng: "My gift is a toy car.", kh: "កាដូរបស់ប៉ាគឺឡានក្មេងលេង។" },
+                { name: "Anne", eng: "Thank you. It's so nice.", kh: "អរគុណ។ វាពិតជាល្អណាស់។" }
             ]},
             { id: 16, title: "When do you go to school?", icon: "🏫", chat: [
-                { name: "Tom", color: "bg-blue-500", eng: "When do you get up?", kh: "តើអ្នកក្រោកពីគេងនៅម៉ោងប៉ុន្មាន?" },
-                { name: "Anne", color: "bg-pink-500", eng: "I get up at 7 o'clock.", kh: "ខ្ញុំក្រោកពីគេងនៅម៉ោង ៧។" },
-                { name: "Tom", color: "bg-blue-500", eng: "When do you eat breakfast?", kh: "តើអ្នកញ៉ាំអាហារពេលព្រឹកនៅម៉ោងប៉ុន្មាន?" },
-                { name: "Anne", color: "bg-pink-500", eng: "I eat breakfast at 8 o'clock.", kh: "ខ្ញុំញ៉ាំអាហារពេលព្រឹកនៅម៉ោង ៨។" },
-                { name: "Tom", color: "bg-blue-500", eng: "When do you go to school?", kh: "តើអ្នកទៅសាលារៀននៅម៉ោងប៉ុន្មាន?" },
-                { name: "Anne", color: "bg-pink-500", eng: "I go to school at 9 o'clock.", kh: "ខ្ញុំទៅសាលារៀននៅម៉ោង ៩។" },
-                { name: "Tom", color: "bg-blue-500", eng: "When do you go to bed?", kh: "តើអ្នកចូលគេងនៅម៉ោងប៉ុន្មាន?" },
-                { name: "Anne", color: "bg-pink-500", eng: "I go to bed at 10 o'clock.", kh: "ខ្ញុំចូលគេងនៅម៉ោង ១០។" }
+                { name: "Tom", eng: "When do you get up?", kh: "តើអ្នកក្រោកពីគេងនៅម៉ោងប៉ុន្មាន?" },
+                { name: "Anne", eng: "I get up at 7 o'clock.", kh: "ខ្ញុំក្រោកពីគេងនៅម៉ោង ៧។" },
+                { name: "Tom", eng: "When do you eat breakfast?", kh: "តើអ្នកញ៉ាំអាហារពេលព្រឹកនៅម៉ោងប៉ុន្មាន?" },
+                { name: "Anne", eng: "I eat breakfast at 8 o'clock.", kh: "ខ្ញុំញ៉ាំអាហារពេលព្រឹកនៅម៉ោង ៨។" },
+                { name: "Tom", eng: "When do you go to school?", kh: "តើអ្នកទៅសាលារៀននៅម៉ោងប៉ុន្មាន?" },
+                { name: "Anne", eng: "I go to school at 9 o'clock.", kh: "ខ្ញុំទៅសាលារៀននៅម៉ោង ៩។" },
+                { name: "Tom", eng: "When do you go to bed?", kh: "តើអ្នកចូលគេងនៅម៉ោងប៉ុន្មាន?" },
+                { name: "Anne", eng: "I go to bed at 10 o'clock.", kh: "ខ្ញុំចូលគេងនៅម៉ោង ១០។" }
             ]},
             { id: 17, title: "What do you do after that?", icon: "⏰", chat: [
-                { name: "Tom", color: "bg-blue-500", eng: "When do you get up?", kh: "តើអ្នកក្រោកពីគេងនៅម៉ោងប៉ុន្មាន?" },
-                { name: "Anne", color: "bg-pink-500", eng: "I get up at 7 o'clock.", kh: "ខ្ញុំក្រោកពីគេងនៅម៉ោង ៧។" },
-                { name: "Tom", color: "bg-blue-500", eng: "What do you do after that?", kh: "តើអ្នកធ្វើអ្វីបន្ទាប់ពីនោះ?" },
-                { name: "Anne", color: "bg-pink-500", eng: "I wash my face.", kh: "ខ្ញុំលាងមុខ។" },
-                { name: "Tom", color: "bg-blue-500", eng: "What do you do then?", kh: "តើអ្នកធ្វើអ្វីបន្តទៀត?" },
-                { name: "Anne", color: "bg-pink-500", eng: "I eat my breakfast.", kh: "ខ្ញុំញ៉ាំអាហារពេលព្រឹករបស់ខ្ញុំ។" },
-                { name: "Tom", color: "bg-blue-500", eng: "What do you do after that?", kh: "តើអ្នកធ្វើអ្វីបន្ទាប់ពីនោះ?" },
-                { name: "Anne", color: "bg-pink-500", eng: "I brush my teeth.", kh: "ខ្ញុំដុសធ្មេញ។" }
+                { name: "Tom", eng: "When do you get up?", kh: "តើអ្នកក្រោកពីគេងនៅម៉ោងប៉ុន្មាន?" },
+                { name: "Anne", eng: "I get up at 7 o'clock.", kh: "ខ្ញុំក្រោកពីគេងនៅម៉ោង ៧។" },
+                { name: "Tom", eng: "What do you do after that?", kh: "តើអ្នកធ្វើអ្វីបន្ទាប់ពីនោះ?" },
+                { name: "Anne", eng: "I wash my face.", kh: "ខ្ញុំលាងមុខ។" },
+                { name: "Tom", eng: "What do you do then?", kh: "តើអ្នកធ្វើអ្វីបន្តទៀត?" },
+                { name: "Anne", eng: "I eat my breakfast.", kh: "ខ្ញុំញ៉ាំអាហារពេលព្រឹករបស់ខ្ញុំ។" },
+                { name: "Tom", eng: "What do you do after that?", kh: "តើអ្នកធ្វើអ្វីបន្ទាប់ពីនោះ?" },
+                { name: "Anne", eng: "I brush my teeth.", kh: "ខ្ញុំដុសធ្មេញ។" }
             ]},
             { id: 18, title: "Where is the clock?", icon: "🕰️", chat: [
-                { name: "Tom", color: "bg-blue-500", eng: "Where is the board?", kh: "តើក្ដារខៀននៅឯណា?" },
-                { name: "Anne", color: "bg-pink-500", eng: "It's on the wall.", kh: "វានៅលើជញ្ជាំង។" },
-                { name: "Tom", color: "bg-blue-500", eng: "What's on the board?", kh: "តើមានអ្វីនៅលើក្ដារខៀន?" },
-                { name: "Anne", color: "bg-pink-500", eng: "A marker is on the board.", kh: "ហ្វឺតនៅលើក្ដារខៀន។" },
-                { name: "Tom", color: "bg-blue-500", eng: "Where are the books?", kh: "តើសៀវភៅនៅឯណា?" },
-                { name: "Anne", color: "bg-pink-500", eng: "They are on the shelf.", kh: "ពួកវានៅលើធ្នើរ។" },
-                { name: "Tom", color: "bg-blue-500", eng: "Where is the clock?", kh: "តើនាឡិកានៅឯណា?" },
-                { name: "Anne", color: "bg-pink-500", eng: "It's on the wall.", kh: "វានៅលើជញ្ជាំង។" }
+                { name: "Tom", eng: "Where is the board?", kh: "តើក្ដារខៀននៅឯណា?" },
+                { name: "Anne", eng: "It's on the wall.", kh: "វានៅលើជញ្ជាំង។" },
+                { name: "Tom", eng: "What's on the board?", kh: "តើមានអ្វីនៅលើក្ដារខៀន?" },
+                { name: "Anne", eng: "A marker is on the board.", kh: "ហ្វឺតនៅលើក្ដារខៀន។" },
+                { name: "Tom", eng: "Where are the books?", kh: "តើសៀវភៅនៅឯណា?" },
+                { name: "Anne", eng: "They are on the shelf.", kh: "ពួកវានៅលើធ្នើរ។" },
+                { name: "Tom", eng: "Where is the clock?", kh: "តើនាឡិកានៅឯណា?" },
+                { name: "Anne", eng: "It's on the wall.", kh: "វានៅលើជញ្ជាំង។" }
             ]},
             { id: 19, title: "What does the monkey have?", icon: "🐒", chat: [
-                { name: "Tom", color: "bg-blue-500", eng: "Where's the monkey?", kh: "តើសត្វស្វានៅឯណា?" },
-                { name: "Anne", color: "bg-pink-500", eng: "It's in the tree.", kh: "វានៅលើដើមឈើ។" },
-                { name: "Tom", color: "bg-blue-500", eng: "What does the monkey have?", kh: "តើសត្វស្វាមានអ្វី?" },
-                { name: "Anne", color: "bg-pink-500", eng: "It has a banana.", kh: "វាមានចេកមួយ។" },
-                { name: "Tom", color: "bg-blue-500", eng: "Where is the rabbit?", kh: "តើសត្វទន្សាយនៅឯណា?" },
-                { name: "Anne", color: "bg-pink-500", eng: "It's in the grass.", kh: "វានៅក្នុងស្មៅ។" },
-                { name: "Tom", color: "bg-blue-500", eng: "What does the rabbit have?", kh: "តើសត្វទន្សាយមានអ្វី?" },
-                { name: "Anne", color: "bg-pink-500", eng: "It has a carrot.", kh: "វាមានការ៉ុតមួយ។" }
+                { name: "Tom", eng: "Where's the monkey?", kh: "តើសត្វស្វានៅឯណា?" },
+                { name: "Anne", eng: "It's in the tree.", kh: "វានៅលើដើមឈើ។" },
+                { name: "Tom", eng: "What does the monkey have?", kh: "តើសត្វស្វាមានអ្វី?" },
+                { name: "Anne", eng: "It has a banana.", kh: "វាមានចេកមួយ។" },
+                { name: "Tom", eng: "Where is the rabbit?", kh: "តើសត្វទន្សាយនៅឯណា?" },
+                { name: "Anne", eng: "It's in the grass.", kh: "វានៅក្នុងស្មៅ។" },
+                { name: "Tom", eng: "What does the rabbit have?", kh: "តើសត្វទន្សាយមានអ្វី?" },
+                { name: "Anne", eng: "It has a carrot.", kh: "វាមានការ៉ុតមួយ។" }
             ]},
             { id: 20, title: "Can you swim?", icon: "🏊", chat: [
-                { name: "Tom", color: "bg-blue-500", eng: "Can you swim?", kh: "តើអ្នកអាចហែលទឹកបានទេ?" },
-                { name: "Anne", color: "bg-pink-500", eng: "No, I can't.", kh: "ទេ ខ្ញុំមិនអាចទេ។" },
-                { name: "Anne", color: "bg-pink-500", eng: "Can you?", kh: "ចុះអ្នកវិញ?" },
-                { name: "Tom", color: "bg-blue-500", eng: "Yes, I can.", kh: "បាទ ខ្ញុំអាច។" },
-                { name: "Anne", color: "bg-pink-500", eng: "Where do you swim?", kh: "តើអ្នកហែលទឹកនៅឯណា?" },
-                { name: "Tom", color: "bg-blue-500", eng: "In a swimming pool.", kh: "នៅក្នុងអាងហែលទឹក។" },
-                { name: "Anne", color: "bg-pink-500", eng: "Can you dive?", kh: "តើអ្នកអាចមុជទឹកបានទេ?" },
-                { name: "Tom", color: "bg-blue-500", eng: "No, I can't.", kh: "ទេ ខ្ញុំមិនអាចទេ។" },
-                { name: "Tom", color: "bg-blue-500", eng: "But I can jump in the pool.", kh: "ប៉ុន្តែខ្ញុំអាចលោតចូលក្នុងអាងទឹកបាន។" },
-                { name: "Anne", color: "bg-pink-500", eng: "I can jump in the pool too.", kh: "ខ្ញុំក៏អាចលោតចូលក្នុងអាងទឹកបានដែរ។" }
+                { name: "Tom", eng: "Can you swim?", kh: "តើអ្នកអាចហែលទឹកបានទេ?" },
+                { name: "Anne", eng: "No, I can't.", kh: "ទេ ខ្ញុំមិនអាចទេ។" },
+                { name: "Anne", eng: "Can you?", kh: "ចុះអ្នកវិញ?" },
+                { name: "Tom", eng: "Yes, I can.", kh: "បាទ ខ្ញុំអាច។" },
+                { name: "Anne", eng: "Where do you swim?", kh: "តើអ្នកហែលទឹកនៅឯណា?" },
+                { name: "Tom", eng: "In a swimming pool.", kh: "នៅក្នុងអាងហែលទឹក។" },
+                { name: "Anne", eng: "Can you dive?", kh: "តើអ្នកអាចមុជទឹកបានទេ?" },
+                { name: "Tom", eng: "No, I can't.", kh: "ទេ ខ្ញុំមិនអាចទេ។" },
+                { name: "Tom", eng: "But I can jump in the pool.", kh: "ប៉ុន្តែខ្ញុំអាចលោតចូលក្នុងអាងទឹកបាន។" },
+                { name: "Anne", eng: "I can jump in the pool too.", kh: "ខ្ញុំក៏អាចលោតចូលក្នុងអាងទឹកបានដែរ។" }
             ]}
         ];
+
+        // --- DRAGGABLE MODAL LOGIC ---
+        function initDraggable() {
+            const widget = document.getElementById('ai-guide-widget');
+            const header = document.getElementById('ai-guide-header');
+            
+            let isDragging = false;
+            let dragStartX, dragStartY;
+
+            const onPointerDown = (e) => {
+                // Don't drag if clicking the close button
+                if (e.target.closest('button')) return;
+                
+                isDragging = true;
+                const clientX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+                const clientY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
+                
+                const rect = widget.getBoundingClientRect();
+                dragStartX = clientX - rect.left;
+                dragStartY = clientY - rect.top;
+                
+                // Switch to fixed left/top instead of transform centering to allow dragging
+                widget.style.transform = 'none';
+                widget.style.left = rect.left + 'px';
+                widget.style.top = rect.top + 'px';
+                
+                document.addEventListener('mousemove', onPointerMove);
+                document.addEventListener('mouseup', onPointerUp);
+                document.addEventListener('touchmove', onPointerMove, {passive: false});
+                document.addEventListener('touchend', onPointerUp);
+            };
+
+            const onPointerMove = (e) => {
+                if (!isDragging) return;
+                e.preventDefault(); // Prevent scrolling while dragging on touch
+                
+                const clientX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+                const clientY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
+                
+                let newX = clientX - dragStartX;
+                let newY = clientY - dragStartY;
+                
+                // Keep widget within screen bounds roughly
+                newX = Math.max(0, Math.min(newX, window.innerWidth - widget.offsetWidth));
+                newY = Math.max(0, Math.min(newY, window.innerHeight - header.offsetHeight));
+
+                widget.style.left = newX + 'px';
+                widget.style.top = newY + 'px';
+            };
+
+            const onPointerUp = () => {
+                isDragging = false;
+                document.removeEventListener('mousemove', onPointerMove);
+                document.removeEventListener('mouseup', onPointerUp);
+                document.removeEventListener('touchmove', onPointerMove);
+                document.removeEventListener('touchend', onPointerUp);
+            };
+
+            header.addEventListener('mousedown', onPointerDown);
+            header.addEventListener('touchstart', onPointerDown, {passive: false});
+        }
+
+        function closeAiGuide() {
+            document.getElementById('ai-guide-widget').classList.add('hidden');
+        }
+
+        // --- GEMINI API CALL HANDLER ---
+        async function callGemini(prompt, expectJson = false) {
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+            let waitTime = 1000;
+            
+            const requestBody = {
+                contents: [{ parts: [{ text: prompt }] }]
+            };
+
+            if (expectJson) {
+                requestBody.generationConfig = { responseMimeType: "application/json" };
+            }
+
+            for (let i = 0; i < 5; i++) {
+                try {
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(requestBody)
+                    });
+                    if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
+                    const data = await response.json();
+                    return data.candidates?.[0]?.content?.parts?.[0]?.text;
+                } catch (error) {
+                    if (i === 4) return null;
+                    await new Promise(r => setTimeout(r, waitTime));
+                    waitTime *= 2;
+                }
+            }
+        }
+
+        // --- AI EXPLAIN FEATURE ---
+        async function explainLine(elementId, englishText) {
+            const widget = document.getElementById('ai-guide-widget');
+            const content = document.getElementById('ai-guide-content');
+            
+            // Show widget and reset position to center if it was hidden
+            if (widget.classList.contains('hidden')) {
+                widget.style.transform = 'translate(-50%, -50%)';
+                widget.style.top = '50%';
+                widget.style.left = '50%';
+                widget.classList.remove('hidden');
+            }
+
+            // Set loading state
+            content.innerHTML = `
+                <div class="flex flex-col items-center justify-center py-6 text-amber-600">
+                    <svg class="w-8 h-8 animate-spin mb-3 text-amber-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                    <div class="font-medium loading-dots">✨ AI កំពុងវិភាគប្រយោគ: <br/>"${englishText}"</div>
+                </div>`;
+
+            const prompt = `អ្នកគឺជាគ្រូបង្រៀនភាសាអង់គ្លេសដ៏ពូកែ។ សូមពន្យល់ប្រយោគនេះ: "${englishText}".
+ពន្យល់ពីវេយ្យាករណ៍ និងពាក្យគន្លឹះជាភាសាខ្មែរឲ្យខ្លី សាមញ្ញ និងងាយយល់បំផុត។
+ប្រើប្រាស់ HTML tags (ឧទាហរណ៍ <br> សម្រាប់ចុះបន្ទាត់, <b> ឬ <span class="text-blue-600 font-bold"> សម្រាប់រំលេចពាក្យសំខាន់ៗ)។ មិនត្រូវប្រើ Markdown format (\`\`\`) ជាដាច់ខាត។`;
+
+            const result = await callGemini(prompt, false);
+            
+            if (result) {
+                const cleanResult = result.replace(/```html/g, '').replace(/```/g, '');
+                content.innerHTML = `
+                    <div class="mb-3 pb-3 border-b border-amber-200/60">
+                        <span class="text-xs font-bold text-amber-600 uppercase tracking-wide">ប្រយោគដើម:</span><br/>
+                        <span class="font-bold text-slate-800 text-base">"${englishText}"</span>
+                    </div>
+                    <div class="leading-relaxed space-y-2">${cleanResult}</div>
+                `;
+            } else {
+                content.innerHTML = `<div class="text-red-500 font-medium text-center py-4">សុំទោស មានបញ្ហាក្នុងការភ្ជាប់ទៅកាន់ AI ពេលនេះ។ សូមព្យាយាមម្តងទៀត។</div>`;
+            }
+        }
+
+        // --- AI GENERATE DIALOGUE FEATURE ---
+        async function generateMoreDialogue() {
+            const chapterIdx = parseInt(document.getElementById('chapter-select').value);
+            const data = conversationData[chapterIdx];
+            const container = document.getElementById('extra-dialogue-container');
+            const btn = document.getElementById('generate-btn');
+            
+            const originalText = btn.innerHTML;
+            btn.innerHTML = `<span class="loading-dots">✨ AI កំពុងបង្កើតការសន្ទនាថ្មី</span>`;
+            btn.disabled = true;
+            btn.classList.add('opacity-80', 'cursor-not-allowed');
+
+            const history = data.chat.map(c => `${c.name}: ${c.eng}`).join('\n');
+            const prompt = `You are an English teacher writing a basic conversation textbook.
+The current chapter topic is: "${data.title}".
+The conversation so far:
+${history}
+
+Generate exactly 2 more short lines to naturally continue this conversation using simple English. Use the same characters.
+Provide the response as a JSON array of objects exactly in this format:
+[
+  {
+    "name": "Character Name",
+    "eng": "English sentence",
+    "kh": "Accurate Khmer translation"
+  }
+]
+Return ONLY valid JSON.`;
+
+            const result = await callGemini(prompt, true);
+            
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+            btn.classList.remove('opacity-80', 'cursor-not-allowed');
+
+            if (result) {
+                try {
+                    const cleanJson = result.replace(/```json/gi, '').replace(/```/g, '').trim();
+                    const newLines = JSON.parse(cleanJson);
+                    
+                    let html = '';
+                    
+                    html += `<div class="flex flex-col sm:flex-row w-full gap-2 sm:gap-4 items-center sm:items-start justify-between bg-amber-50/50 p-2 rounded-2xl relative border border-amber-100/50">`;
+                    
+                    if (newLines[0]) {
+                        const id1 = `ai-exp-${Date.now()}-0`;
+                        html += `<div class="w-full sm:w-1/2 flex justify-start">${generateBubbleHTML(newLines[0], id1, true)}</div>`;
+                    }
+                    if (newLines[1]) {
+                        const id2 = `ai-exp-${Date.now()}-1`;
+                        html += `<div class="w-full sm:w-1/2 flex justify-end">${generateBubbleHTML(newLines[1], id2, true)}</div>`;
+                    }
+                    
+                    html += `</div>`;
+                    container.insertAdjacentHTML('beforeend', html);
+
+                } catch (e) {
+                    console.error("Failed to parse AI JSON:", e, result);
+                    alert("មានបញ្ហាក្នុងការបកប្រែទិន្នន័យពី AI។ សូមព្យាយាមម្តងទៀត។");
+                }
+            } else {
+                alert("សុំទោស មានបញ្ហាក្នុងការភ្ជាប់ទៅ AI ពេលនេះ។");
+            }
+        }
 
         function initTabs() {
             const select = document.getElementById('chapter-select');
             conversationData.forEach((item, index) => {
                 const option = document.createElement('option');
                 option.value = index;
-                // Add padding to the option string
                 option.innerHTML = `${item.icon} Chapter ${item.id} - ${item.title}`;
                 select.appendChild(option);
             });
         }
 
-        function switchChapter(index) {
-            // Update Select UI
-            const select = document.getElementById('chapter-select');
-            if(select && select.value != index) {
-                select.value = index;
-            }
+        // Generate the inner contents of a single chat bubble (Left or Right)
+        function generateBubbleHTML(line, uniqueId, isGenerated = false) {
+            const props = charProps[line.name] || { emoji: "🧑", boxBg: "bg-slate-50", boxBorder: "border-slate-200", nameColor: "text-slate-500", alignLeft: false };
+            
+            const isLeft = props.alignLeft;
+            const flexDirection = isLeft ? "flex-row" : "flex-row-reverse";
+            const borderRadius = isLeft ? "rounded-tl-none" : "rounded-tr-none";
+            
+            const badgeHTML = isGenerated ? `<span class="absolute -top-2.5 -right-2 bg-amber-400 text-white text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm z-10">AI</span>` : '';
 
-            // Update Conversation UI
+            return `
+                <div class="flex items-center gap-1 ${flexDirection} w-fit relative group max-w-[100%]">
+                    <!-- Avatar Area -->
+                    <div class="flex flex-col items-center flex-shrink-0 w-10 sm:w-12 pt-0.5 ${isLeft ? 'mr-1 sm:mr-2' : 'ml-1 sm:ml-2'}">
+                        <div class="text-3xl leading-none drop-shadow-sm">${props.emoji}</div>
+                        <span class="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider mt-1 ${props.nameColor}">${line.name}</span>
+                    </div>
+
+                    <!-- Speech Bubble -->
+                    <div class="${props.boxBg} py-1.5 px-3 sm:px-4 rounded-xl ${borderRadius} border ${props.boxBorder} w-fit max-w-[220px] sm:max-w-[280px] shadow-sm relative transition-all">
+                        ${badgeHTML}
+                        <p class="text-slate-800 font-bold text-[14px] sm:text-base leading-tight">${line.eng}</p>
+                        <p class="khmer-text mt-0.5 italic text-[11px] sm:text-[0.8rem] text-slate-600">${line.kh}</p>
+                    </div>
+                    
+                    <!-- Action Buttons -->
+                    <div class="flex gap-1 mx-1 z-10 shrink-0">
+                        <button id="btn-${uniqueId}" onclick="explainLine('${uniqueId}', \`${line.eng.replace(/'/g, "\\'")}\`)" class="text-[12px] sm:text-[14px] text-amber-500 hover:text-amber-600 bg-amber-50 hover:bg-amber-100 rounded-full w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center transition-colors shadow-sm border border-amber-100 print:hidden" title="✨ AI ពន្យល់ (Explain Grammar)">
+                            ✨
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Render the whole chapter based on selected index
+        function switchChapter(index) {
+            const select = document.getElementById('chapter-select');
+            if(select && select.value != index) select.value = index;
+
             const display = document.getElementById('conversation-display');
             const data = conversationData[index];
             
-            display.innerHTML = `
-                <div class="mb-4">
+            let htmlContent = `
+                <div class="mb-5 flex justify-between items-center border-b border-slate-100 pb-3 px-2">
                     <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2">
                         <span class="bg-blue-100 text-blue-600 px-3 py-1 rounded-lg text-sm">Chapter ${data.id}</span>
                         ${data.title}
                     </h2>
                 </div>
-                <div class="space-y-3">
-                    ${data.chat.map((line, i) => {
-                        const props = charProps[line.name] || { emoji: "🧑", boxBg: "bg-slate-50", boxBorder: "border-slate-200", nameColor: "text-slate-500" };
-                        return `
-                        <div class="flex items-start gap-3 chat-bubble" style="animation-delay: ${i * 0.1}s">
-                            <div class="flex flex-col items-center flex-shrink-0 w-12 pt-1">
-                                <div class="text-3xl leading-none drop-shadow-sm">${props.emoji}</div>
-                                <span class="text-[10px] font-bold uppercase tracking-wider mt-1 ${props.nameColor}">${line.name}</span>
-                            </div>
-                            <div class="flex-grow pt-0.5">
-                                <div class="${props.boxBg} py-1 px-3.5 rounded-xl rounded-tl-none border ${props.boxBorder} w-fit shadow-sm">
-                                    <p class="text-slate-800 font-bold text-base leading-tight">${line.eng}</p>
-                                    <p class="khmer-text mt-0 italic">${line.kh}</p>
-                                </div>
-                            </div>
+                <div class="space-y-4" id="main-dialogue-container">
+            `;
+
+            for (let i = 0; i < data.chat.length; i += 2) {
+                const line1 = data.chat[i];
+                const line2 = data.chat[i+1];
+                
+                const uniqueId1 = `exp-${data.id}-${i}`;
+                const bubble1HTML = generateBubbleHTML(line1, uniqueId1, false);
+                
+                let bubble2HTML = '';
+                if (line2) {
+                    const uniqueId2 = `exp-${data.id}-${i+1}`;
+                    bubble2HTML = generateBubbleHTML(line2, uniqueId2, false);
+                }
+
+                htmlContent += `
+                    <div class="flex flex-col md:flex-row w-full gap-3 md:gap-4 items-center md:items-start justify-between bg-slate-50/40 p-2 sm:p-3 rounded-2xl relative border border-slate-100/50">
+                        <div class="w-full md:w-1/2 flex justify-start">
+                            ${bubble1HTML}
                         </div>
-                        `;
-                    }).join('')}
+                        ${line2 ? `
+                        <div class="w-full md:w-1/2 flex justify-end mt-2 md:mt-6">
+                            ${bubble2HTML}
+                        </div>
+                        ` : ''}
+                    </div>
+                `;
+            }
+
+            htmlContent += `
+                </div>
+                <!-- AI Extracted container -->
+                <div id="extra-dialogue-container" class="space-y-4 mt-4"></div>
+                
+                <!-- AI Generate Button -->
+                <div class="mt-8 flex justify-center print:hidden border-t border-slate-100 pt-6">
+                    <button id="generate-btn" onclick="generateMoreDialogue()" class="bg-gradient-to-r from-indigo-500 to-blue-600 hover:from-indigo-600 hover:to-blue-700 text-white px-5 py-2.5 rounded-2xl font-bold shadow-md hover:shadow-lg transition-all flex items-center gap-2 text-sm">
+                        ✨ បង្កើតការសន្ទនាបន្ត (AI Generate)
+                    </button>
                 </div>
             `;
+            
+            display.innerHTML = htmlContent;
         }
 
+        // Generate Print Friendly Version
         function generatePrintLayout() {
             const printContainer = document.getElementById('print-view');
             let printContent = `
@@ -412,8 +720,9 @@
 
         window.onload = () => {
             initTabs();
-            switchChapter(0); // Load Chapter 1 by default
-            generatePrintLayout(); // Pre-render the print view behind the scenes
+            switchChapter(0); 
+            generatePrintLayout();
+            initDraggable(); // Initialize Drag feature for AI Guide
         };
     </script>
 </body>
